@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='PyLauncherMPI',
-    version='0.1.1',
+    version='0.1.4',
     author='John Vouvakis Manousakis',
     author_email='ioannis_vm@berkeley.edu',
     description='A simple MPI-based task scheduler for dynamically distributing commands across MPI processes.',
@@ -10,6 +10,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/ioannis-vm/PyLauncherMPI',
     packages=find_packages(),
+    include_package_data=True,
     install_requires=[
         'mpi4py',
     ],
@@ -27,7 +28,7 @@ setup(
     python_requires='>=3.7',
     entry_points={
         'console_scripts': [
-            'pylaunchermpi=PyLauncherMPI.main:main',  # Adjust the path as necessary
+            'pylaunchermpi=pylaunchermpi.main:main',
         ],
     },
 )
