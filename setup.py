@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='PyLauncherMPI',
-    version='0.1.0',
+    version='0.1.1',
     author='John Vouvakis Manousakis',
     author_email='ioannis_vm@berkeley.edu',
     description='A simple MPI-based task scheduler for dynamically distributing commands across MPI processes.',
