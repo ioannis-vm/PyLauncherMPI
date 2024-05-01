@@ -1,8 +1,23 @@
 from mpi4py import MPI
 import os
 import subprocess
+from datetime import datetime
 from time import perf_counter
 import hashlib
+
+
+def message(text):
+    """
+    Prints a message to stdout including the process ID and a
+    timestamp.
+
+    """
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    current_time = datetime.now()
+    time_string = current_time.strftime("%H:%M:%S")
+    message = f'{time_string} | Process {rank}: ' + text
+    print(message)
 
 
 def generate_hash(s):
@@ -48,8 +63,8 @@ def main():
         if not job_file:
             raise ValueError('Did not find LAUNCHER_JOB_FILE.')
 
-        print(f'Process {rank}: `LAUNCHER_WORKDIR={work_dir}`.')
-        print(f'Process {rank}: `LAUNCHER_JOB_FILE={job_file}`.')
+        message(f'`LAUNCHER_WORKDIR={work_dir}`.')
+        message(f'`LAUNCHER_JOB_FILE={job_file}`.')
 
         # Load commands from a file
         job_file_path = f'{work_dir}/{job_file}'
@@ -61,7 +76,7 @@ def main():
         # Remove newline characters
         commands = [command.strip() for command in commands]
 
-        print(f'Process {rank}: Parsed {len(commands)} tasks.')
+        message(f'Parsed {len(commands)} tasks.')
 
     else:
         commands = None
@@ -82,28 +97,25 @@ def main():
     # Each process runs its allocated commands
     for command in commands_for_process:
         command_hash = generate_hash(command)
-        print(f"Process {rank}: Executing command {command_hash}: `{command}`")
+        message(f"Executing command {command_hash}: `{command}`")
         out = subprocess.run(command, capture_output=True, shell=True)
         if out.returncode == 0:
-            print(
-                f'Process {rank}: Command {command_hash} '
+            message(
+                f'Command {command_hash} '
                 f'finished successfully. '
                 f'stderr: `{out.stderr}`. '
                 f'stdout: `{out.stdout}`.'
             )
         else:
-            print(
-                f'Process {rank}: There was an error with {command_hash}. '
+            message(
+                f'There was an error with {command_hash}. '
                 f'stderr: `{out.stderr}`. '
                 f'stdout: `{out.stdout}`.'
             )
 
     t_end = perf_counter()
 
-    print(
-        f'Process {rank}: Done with all tasks. '
-        f'Elapsed time: {t_end - t_start:.2f} s.'
-    )
+    message(f'Done with all tasks. ' f'Elapsed time: {t_end - t_start:.2f} s.')
 
 
 if __name__ == '__main__':
