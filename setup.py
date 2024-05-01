@@ -5,7 +5,10 @@ setup(
     version='0.1.4',
     author='John Vouvakis Manousakis',
     author_email='ioannis_vm@berkeley.edu',
-    description='A simple MPI-based task scheduler for dynamically distributing commands across MPI processes.',
+    description=(
+        'A simple MPI-based task scheduler for dynamically '
+        'distributing commands across MPI processes.'
+    ),
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/ioannis-vm/PyLauncherMPI',
