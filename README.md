@@ -1,4 +1,6 @@
 # PyLauncherMPI
+[![Flake8 Lint](https://github.com/ioannis-vm/PyLauncherMPI/actions/workflows/flake8.yml/badge.svg)](https://github.com/ioannis-vm/PyLauncherMPI/actions/workflows/flake8.yml/badge.svg)
+
 A simple MPI-based task scheduler for dynamically distributing commands across MPI processes.
 
 ## How to use
