@@ -1,2 +1,2 @@
 # PyLauncherMPI
-A very simple dynamic MPI task scheduler for use with HPC resources.
+A simple MPI-based task scheduler for dynamically distributing commands across MPI processes.
