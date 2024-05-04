@@ -3,7 +3,7 @@ import os
 import subprocess
 from datetime import datetime
 from time import perf_counter
-import hashlib
+from time import sleep
 
 
 def message(text):
@@ -17,29 +17,7 @@ def message(text):
     current_time = datetime.now()
     time_string = current_time.strftime("%H:%M:%S")
     message = f'{time_string} | Process {rank}: ' + text
-    print(message)
-
-
-def generate_hash(s):
-    """
-    Uses SHA-256 to hash a given string and then encode the result to
-    a 6-character string.
-
-    Parameters
-    ----------
-    s: string
-        The string to hash
-
-    Returns
-    -------
-    str
-        6-charachter hash
-
-    """
-
-    hash_object = hashlib.sha256(s.encode())
-    hex_dig = hash_object.hexdigest()  # Convert to hexadecimal
-    return hex_dig[:6]  # Return the first 6 characters
+    print(message, flush=True)
 
 
 def main():
@@ -94,21 +72,23 @@ def main():
     # Distribute the commands
     commands_for_process = comm.scatter(allocated_commands, root=0)
 
+    # Wait a bit for other processes to perform their IO operations
+    sleep(rank / 1000.00)  # i.e., process 1000 will start after 1 sec
+
     # Each process runs its allocated commands
     for command in commands_for_process:
-        command_hash = generate_hash(command)
-        message(f"Executing command {command_hash}: `{command}`")
+        message(f"Executing command: `{command}`")
         out = subprocess.run(command, capture_output=True, shell=True)
         if out.returncode == 0:
             message(
-                f'Command {command_hash} '
+                f'Command `{command}` '
                 f'finished successfully. '
                 f'stderr: `{out.stderr}`. '
                 f'stdout: `{out.stdout}`.'
             )
         else:
             message(
-                f'There was an error with {command_hash}. '
+                f'There was an error with command `{command}`. '
                 f'stderr: `{out.stderr}`. '
                 f'stdout: `{out.stdout}`.'
             )
