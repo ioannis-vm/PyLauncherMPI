@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='PyLauncherMPI',
-    version='0.1.7',
+    version='0.1.8',
     author='John Vouvakis Manousakis',
     author_email='ioannis_vm@berkeley.edu',
     description=(

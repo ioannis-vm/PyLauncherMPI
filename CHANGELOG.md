@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2024-05-05
+
+### Fixed
+
+Fixed a bug with tasks being allocated to the wrong process.
+
 ## [0.1.7] - 2024-05-05
 
 Move from static allocation prototype to dynamic. Task allocation is now dynamic.

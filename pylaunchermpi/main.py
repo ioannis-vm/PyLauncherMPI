@@ -53,9 +53,10 @@ def main():
         with open(job_file_path, 'r') as file:
             commands = [command.strip() for command in file.readlines()]
 
-        message(f'Parsed {len(commands)} tasks.')
-        for i, command in enumerate(commands):
-            message(f'  Task ID {i}: `{command}`')
+        message(
+            f'Parsed {len(commands)} tasks. Tasks: '
+            + str({i: commands[i] for i in range(len(commands))})
+        )
 
         # Dispatch tasks dynamically
         task_id = 0
@@ -63,28 +64,29 @@ def main():
         active_requests = size - 1
 
         while active_requests > 0:
-            status = MPI.Status()
             if task_id < num_tasks:
                 # Receive any signal
-                comm.recv(
-                    source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
-                )
+                # get data
+                status = MPI.Status()
+                data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+                # get sender
+                sender = status.Get_source()
+                message(f'Sending task {task_id} to process {sender}')
                 comm.send(
                     (
                         task_id,
                         commands[task_id],
                     ),
-                    dest=status.source,
-                    tag=1,
+                    dest=sender,
+                    tag=2,
                 )
                 task_id += 1
-                message(f'Sending task {task_id} to process {status.source}')
             else:
                 # No more tasks, receive final signals and send termination tag
-                comm.recv(
-                    source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
-                )
-                comm.send((None, None), dest=status.source, tag=0)
+                status = MPI.Status()
+                comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+                sender = status.Get_tag()
+                comm.send((None, None), dest=sender, tag=2)
                 active_requests -= 1
 
     else:
@@ -92,10 +94,8 @@ def main():
         # Worker processes requesting tasks and executing them
         while True:
 
-            comm.send(None, dest=0, tag=1)  # Signal readiness to receive task
-            task_id, command = comm.recv(
-                source=0, tag=MPI.ANY_TAG, status=MPI.Status()
-            )
+            comm.send(None, dest=0, tag=rank)  # Signal readiness to receive task
+            task_id, command = comm.recv(source=0, tag=2)
             if command is None:
                 # No more tasks, break out of loop
                 break
