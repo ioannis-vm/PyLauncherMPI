@@ -3,7 +3,6 @@ import os
 import subprocess
 from datetime import datetime
 from time import perf_counter
-from time import sleep
 
 
 def message(text):
@@ -29,8 +28,9 @@ def main():
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-    # The master process (rank 0) will read the commands and distribute them
     if rank == 0:
+        # The master process (rank 0) will read the commands and
+        # manage task distribution
 
         # Get environment variables
         work_dir = os.environ.get('LAUNCHER_WORKDIR')
@@ -43,6 +43,7 @@ def main():
 
         message(f'`LAUNCHER_WORKDIR={work_dir}`.')
         message(f'`LAUNCHER_JOB_FILE={job_file}`.')
+        message(f'The size is {size}.')
 
         # Load commands from a file
         job_file_path = f'{work_dir}/{job_file}'
@@ -50,52 +51,71 @@ def main():
         if not exists:
             raise ValueError(f'Job file does not exist: `{job_file_path}`.')
         with open(job_file_path, 'r') as file:
-            commands = file.readlines()
-        # Remove newline characters
-        commands = [command.strip() for command in commands]
+            commands = [command.strip() for command in file.readlines()]
 
         message(f'Parsed {len(commands)} tasks.')
-
-    else:
-        commands = None
-
-    # Scatter commands to all processes, assuming the number of commands
-    # is at least the number of processes
-    if rank == 0:
-        # Allocate commands to processes
-        allocated_commands = [[] for _ in range(size)]
         for i, command in enumerate(commands):
-            allocated_commands[i % size].append(command)
+            message(f'  Task ID {i}: `{command}`')
+
+        # Dispatch tasks dynamically
+        task_id = 0
+        num_tasks = len(commands)
+        active_requests = size - 1
+
+        while active_requests > 0:
+            status = MPI.Status()
+            if task_id < num_tasks:
+                # Receive any signal
+                comm.recv(
+                    source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
+                )
+                comm.send(
+                    (
+                        task_id,
+                        commands[task_id],
+                    ),
+                    dest=status.source,
+                    tag=1,
+                )
+                task_id += 1
+                message(f'Sending task {task_id} to process {status.source}')
+            else:
+                # No more tasks, receive final signals and send termination tag
+                comm.recv(
+                    source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
+                )
+                comm.send((None, None), dest=status.source, tag=0)
+                active_requests -= 1
+
     else:
-        allocated_commands = None
 
-    # Distribute the commands
-    commands_for_process = comm.scatter(allocated_commands, root=0)
+        # Worker processes requesting tasks and executing them
+        while True:
 
-    # Wait a bit for other processes to perform their IO operations
-    sleep(rank / 1000.00)  # i.e., process 1000 will start after 1 sec
-
-    # Each process runs its allocated commands
-    for command in commands_for_process:
-        message(f"Executing command: `{command}`")
-        out = subprocess.run(command, capture_output=True, shell=True)
-        if out.returncode == 0:
-            message(
-                f'Command `{command}` '
-                f'finished successfully. '
-                f'stderr: `{out.stderr}`. '
-                f'stdout: `{out.stdout}`.'
+            comm.send(None, dest=0, tag=1)  # Signal readiness to receive task
+            task_id, command = comm.recv(
+                source=0, tag=MPI.ANY_TAG, status=MPI.Status()
             )
-        else:
-            message(
-                f'There was an error with command `{command}`. '
-                f'stderr: `{out.stderr}`. '
-                f'stdout: `{out.stdout}`.'
-            )
+            if command is None:
+                # No more tasks, break out of loop
+                break
+
+            message(f"Executing task {task_id}.")
+
+            out = subprocess.run(command, capture_output=True, shell=True)
+            if out.returncode == 0:
+                message(
+                    f'Task {task_id} finished successfully. '
+                    f'stderr: `{out.stderr}`. stdout: `{out.stdout}`.'
+                )
+            else:
+                message(
+                    f'There was an error with task {task_id}. '
+                    f'stderr: `{out.stderr}`. stdout: `{out.stdout}`.'
+                )
 
     t_end = perf_counter()
-
-    message(f'Done with all tasks. ' f'Elapsed time: {t_end - t_start:.2f} s.')
+    message(f'Done with all tasks. Elapsed time: {t_end - t_start:.2f} s.')
 
 
 if __name__ == '__main__':
