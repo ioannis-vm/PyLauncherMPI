@@ -1,3 +1,12 @@
+"""
+
+pylaunchermpi
+
+A simple MPI-based task scheduler for dynamically distributing
+commands across MPI processes.
+
+"""
+
 import os
 import subprocess
 from datetime import datetime
@@ -72,9 +81,7 @@ def main():
                 # Receive any signal
                 # get data
                 status = MPI.Status()
-                comm.recv(
-                    source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
-                )
+                comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
                 # get sender
                 sender = status.Get_source()
                 message(f'Sending task {task_id} to process {sender}')
@@ -113,18 +120,22 @@ def main():
 
             message(f"Executing task {task_id}.")
 
-            out = subprocess.run(
-                command, capture_output=True, shell=True, check=False
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            if out.returncode == 0:
+            stdout, stderr = process.communicate()
+            if process.returncode == 0:
                 message(
                     f'Task {task_id} finished successfully. '
-                    f'stderr: `{out.stderr}`. stdout: `{out.stdout}`.'
+                    f'stderr: `{stderr}`. stdout: `{stdout}`.'
                 )
             else:
                 message(
                     f'There was an error with task {task_id}. '
-                    f'stderr: `{out.stderr}`. stdout: `{out.stdout}`.'
+                    f'stderr: `{stderr}`. stdout: `{stdout}`.'
                 )
 
     t_end = perf_counter()
@@ -132,8 +143,8 @@ def main():
         f'Done with all tasks. Elapsed time: '
         f'{t_end - t_start:.2f} s. Waiting at barrier.'
     )
-    comm.Barrier()
 
+    comm.Barrier()
     MPI.Finalize()
 
 
