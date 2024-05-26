@@ -1,8 +1,8 @@
-from mpi4py import MPI
 import os
 import subprocess
 from datetime import datetime
 from time import perf_counter
+from mpi4py import MPI
 
 
 def message(text):
@@ -15,11 +15,15 @@ def message(text):
     rank = comm.Get_rank()
     current_time = datetime.now()
     time_string = current_time.strftime("%H:%M:%S")
-    message = f'{time_string} | Process {rank}: ' + text
-    print(message, flush=True)
+    message_contents = f'{time_string} | Process {rank}: ' + text
+    print(message_contents, flush=True)
 
 
 def main():
+    """
+    Main function.
+
+    """
 
     t_start = perf_counter()
 
@@ -50,7 +54,7 @@ def main():
         exists = os.path.isfile(job_file_path)
         if not exists:
             raise ValueError(f'Job file does not exist: `{job_file_path}`.')
-        with open(job_file_path, 'r') as file:
+        with open(job_file_path, 'r', encoding='utf-8') as file:
             commands = [command.strip() for command in file.readlines()]
 
         message(
@@ -68,7 +72,9 @@ def main():
                 # Receive any signal
                 # get data
                 status = MPI.Status()
-                data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+                comm.recv(
+                    source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status
+                )
                 # get sender
                 sender = status.Get_source()
                 message(f'Sending task {task_id} to process {sender}')
@@ -84,7 +90,11 @@ def main():
             else:
                 # No more tasks, receive final signals and send termination tag
                 status = MPI.Status()
-                comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+                comm.recv(
+                    source=MPI.ANY_SOURCE,
+                    tag=MPI.ANY_TAG,
+                    status=status,
+                )
                 sender = status.Get_tag()
                 comm.send((None, None), dest=sender, tag=2)
                 active_requests -= 1
@@ -94,7 +104,8 @@ def main():
         # Worker processes requesting tasks and executing them
         while True:
 
-            comm.send(None, dest=0, tag=rank)  # Signal readiness to receive task
+            # Signal readiness to receive task
+            comm.send(None, dest=0, tag=rank)
             task_id, command = comm.recv(source=0, tag=2)
             if command is None:
                 # No more tasks, break out of loop
@@ -102,7 +113,9 @@ def main():
 
             message(f"Executing task {task_id}.")
 
-            out = subprocess.run(command, capture_output=True, shell=True)
+            out = subprocess.run(
+                command, capture_output=True, shell=True, check=False
+            )
             if out.returncode == 0:
                 message(
                     f'Task {task_id} finished successfully. '
@@ -115,7 +128,13 @@ def main():
                 )
 
     t_end = perf_counter()
-    message(f'Done with all tasks. Elapsed time: {t_end - t_start:.2f} s.')
+    message(
+        f'Done with all tasks. Elapsed time: '
+        f'{t_end - t_start:.2f} s. Waiting at barrier.'
+    )
+    comm.Barrier()
+
+    MPI.Finalize()
 
 
 if __name__ == '__main__':
